@@ -98,10 +98,16 @@ def load_worker(local_rank, cfgs, gpus_per_node, run_name, hdf5_path):
 
     misc.fix_seed(cfgs.RUN.seed + global_rank)
 
+    # Edit by Benny (Macbook Training)
+    # enable apple silicon:
+    local_rank = torch.device("mps")
+    # enable cpu:
+    #local_rank = torch.device("cpu")
+
     # -----------------------------------------------------------------------------
     # Intialize python logger.
     # -----------------------------------------------------------------------------
-    if local_rank == 0:
+    if local_rank == 0 or local_rank == torch.device("mps") or local_rank == torch.device("cpu"):
         logger = log.make_logger(cfgs.RUN.save_dir, run_name, None)
         if cfgs.RUN.ckpt_dir is not None and cfgs.RUN.freezeD == -1:
             folder_hier = cfgs.RUN.ckpt_dir.split("/")
@@ -421,6 +427,11 @@ def load_worker(local_rank, cfgs, gpus_per_node, run_name, hdf5_path):
                     is_best = worker.evaluate(step=step, metrics=cfgs.RUN.eval_metrics, writing=True, training=True)
 
                 # save GAN in "./checkpoints/RUN_NAME/*"
+                # fix bug with non-existent checkpoint folder path:
+                if worker.RUN.ckpt_dir is None:
+                    worker.RUN.ckpt_dir = join(worker.RUN.save_dir, "checkpoints", worker.run_name)
+                    os.makedirs(worker.RUN.ckpt_dir, exist_ok=True)
+
                 if global_rank == 0:
                     worker.save(step=step, is_best=is_best)
 

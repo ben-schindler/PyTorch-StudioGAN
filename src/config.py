@@ -119,6 +119,15 @@ class Configurations(object):
         # dimension of discrete c to use in InfoGAN (one-hot)
         self.MODEL.info_dim_discrete_c = "N/A"
 
+        # ensemble of discriminators activated
+        self.MODEL.ensemble = False
+        # number of identical discriminators
+        self.MODEL.ens_multiplier = 1
+        # discriminator weighting
+        self.MODEL.ens_weighting = 'ew'
+
+
+
         # -----------------------------------------------------------------------------
         # loss settings
         # -----------------------------------------------------------------------------

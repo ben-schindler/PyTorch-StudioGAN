@@ -126,7 +126,11 @@ def load_configs_initialize_training():
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-    gpus_per_node, rank = torch.cuda.device_count(), torch.cuda.current_device()
+    # This has been adopted for supporting Apple Silicon:
+    if torch.backends.mps.is_available(): # apple silicon
+        gpus_per_node, rank = 1, 0
+    else:  #CUDA
+        gpus_per_node, rank = torch.cuda.device_count(), torch.cuda.current_device()
 
     cfgs = config.Configurations(args.cfg_file)
     cfgs.update_cfgs(run_cfgs, super="RUN")

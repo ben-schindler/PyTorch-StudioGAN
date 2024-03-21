@@ -42,7 +42,10 @@ def load_ckpt(model, optimizer, ckpt_path, load_model=False, load_opt=False, loa
         for state in optimizer.state.values():
             for k, v in state.items():
                 if isinstance(v, torch.Tensor):
-                    state[k] = v.cuda()
+                    if torch.backends.mps.is_available(): 
+                        state[k] = v.to(device=torch.device("mps"))
+                    else:
+                        state[k] = v.cuda()
 
     if load_misc:
         seed = ckpt["seed"]

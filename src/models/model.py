@@ -116,21 +116,42 @@ def load_generator_discriminator(DATA, OPTIMIZATION, MODEL, STYLEGAN, MODULES, R
 
         Gen_mapping, Gen_synthesis = None, None
 
-        Dis = module.Discriminator(img_size=DATA.img_size,
-                                   d_conv_dim=MODEL.d_conv_dim,
-                                   apply_d_sn=MODEL.apply_d_sn,
-                                   apply_attn=MODEL.apply_attn,
-                                   attn_d_loc=MODEL.attn_d_loc,
-                                   d_cond_mtd=MODEL.d_cond_mtd,
-                                   aux_cls_type=MODEL.aux_cls_type,
-                                   d_embed_dim=MODEL.d_embed_dim,
-                                   num_classes=DATA.num_classes,
-                                   normalize_d_embed=MODEL.normalize_d_embed,
-                                   d_init=MODEL.d_init,
-                                   d_depth=MODEL.d_depth,
-                                   mixed_precision=RUN.mixed_precision,
-                                   MODULES=MODULES,
-                                   MODEL=MODEL).to(device)
+        if MODEL.ensemble:
+            ensemble_module = __import__("discr_ensemble", fromlist=["something"])
+            Dis = ensemble_module.DiscriminatorEnsemble(discr_class=module.Discriminator,
+                                                        multiplier=MODEL.ens_multiplier,
+                                                        weighting=MODEL.ens_weighting,
+                                                        **{"img_size": DATA.img_size,
+                                                            "d_conv_dim": MODEL.d_conv_dim,
+                                                            "apply_d_sn": MODEL.apply_d_sn,
+                                                            "apply_attn": MODEL.apply_attn,
+                                                            "attn_d_loc": MODEL.attn_d_loc,
+                                                            "d_cond_mtd": MODEL.d_cond_mtd,
+                                                            "aux_cls_type": MODEL.aux_cls_type,
+                                                            "d_embed_dim": MODEL.d_embed_dim,
+                                                            "num_classes": DATA.num_classes,
+                                                            "normalize_d_embed": MODEL.normalize_d_embed,
+                                                            "d_init": MODEL.d_init,
+                                                            "d_depth": MODEL.d_depth,
+                                                            "mixed_precision": RUN.mixed_precision,
+                                                            "MODULES": MODULES,
+                                                            "MODEL": MODEL}).to(device)
+        else:
+            Dis = module.Discriminator(img_size=DATA.img_size,
+                                       d_conv_dim=MODEL.d_conv_dim,
+                                       apply_d_sn=MODEL.apply_d_sn,
+                                       apply_attn=MODEL.apply_attn,
+                                       attn_d_loc=MODEL.attn_d_loc,
+                                       d_cond_mtd=MODEL.d_cond_mtd,
+                                       aux_cls_type=MODEL.aux_cls_type,
+                                       d_embed_dim=MODEL.d_embed_dim,
+                                       num_classes=DATA.num_classes,
+                                       normalize_d_embed=MODEL.normalize_d_embed,
+                                       d_init=MODEL.d_init,
+                                       d_depth=MODEL.d_depth,
+                                       mixed_precision=RUN.mixed_precision,
+                                       MODULES=MODULES,
+                                       MODEL=MODEL).to(device)
         if MODEL.apply_g_ema:
             if device == 0:
                 logger.info("Prepare exponential moving average generator with decay rate of {decay}."\

@@ -83,7 +83,11 @@ def calculate_moments(data_loader, eval_model, num_generate, batch_size, quantiz
             except StopIteration:
                 break
 
-            images, labels = images.to("cuda"), labels.to("cuda")
+            # This has been adopted for supporting Apple Silicon:
+            if torch.backends.mps.is_available():
+                images, labels = images.to("mps"), labels.to("mps")
+            else:
+                images, labels = images.to("cuda"), labels.to("cuda")
 
             with torch.no_grad():
                 embeddings, logits = eval_model.get_outputs(images, quantize=quantize)
