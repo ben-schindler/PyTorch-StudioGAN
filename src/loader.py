@@ -98,10 +98,10 @@ def load_worker(local_rank, cfgs, gpus_per_node, run_name, hdf5_path):
 
     misc.fix_seed(cfgs.RUN.seed + global_rank)
 
-    # Edit by Benny (Macbook Training)
-    # enable apple silicon:
-    local_rank = torch.device("mps")
-    # enable cpu:
+    # This has been adopted for supporting Apple Silicon:
+    if torch.backends.mps.is_available():
+        local_rank = torch.device("mps")
+    # debug: -> enable cpu:
     #local_rank = torch.device("cpu")
 
     # -----------------------------------------------------------------------------
