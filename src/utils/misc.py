@@ -689,3 +689,34 @@ def load_pretrained_linear_weights(linear_classifier, model_name, patch_size):
         linear_classifier.load_state_dict(state_dict, strict=True)
     else:
         print("We use random linear weights.")
+
+def save_samples_as_csv(batch, save_path, *args, **kwds):
+    if isinstance(batch, torch.Tensor):
+        out = batch.numpy()
+    elif isinstance(batch, np.ndarray):
+        out = batch
+    else:
+        raise TypeError("Batch must be numpy array, pandas Dataframe, or Torch Tensor")
+    directory = dirname(save_path)
+
+    if not exists(directory):
+        os.makedirs(directory)
+
+    np.savetxt(save_path, out, delimiter=",", *args, **kwds)
+
+def save_tensor_as_npz(tensor, save_path, *args, **kwds):
+    directory = dirname(save_path)
+
+    if not exists(directory):
+        os.makedirs(directory)
+
+    if isinstance(tensor, torch.Tensor):
+        out = tensor.numpy()
+    elif isinstance(tensor, np.ndarray):
+        out = tensor
+    elif isinstance(tensor, pd.DataFrame):
+        out = np.ndarray(tensor.values)
+    else:
+        raise TypeError("Batch must be numpy array, pandas Dataframe, or Torch Tensor")
+
+    np.savez(save_path, out, *args, **kwds)

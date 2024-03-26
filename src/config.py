@@ -344,6 +344,9 @@ class Configurations(object):
         # -----------------------------------------------------------------------------
         self.RUN = misc.make_empty_object()
 
+        # Save Adversarial Gradients of Generated samples
+        self.RUN.save_sample_gradients = False
+
         # -----------------------------------------------------------------------------
         # run settings
         # -----------------------------------------------------------------------------
