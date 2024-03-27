@@ -121,6 +121,7 @@ def load_generator_discriminator(DATA, OPTIMIZATION, MODEL, STYLEGAN, MODULES, R
             Dis = ensemble_module.DiscriminatorEnsemble(discr_class=module.Discriminator,
                                                         multiplier=MODEL.ens_multiplier,
                                                         weighting=MODEL.ens_weighting,
+                                                        isStudioGAN=True,
                                                         **{"img_size": DATA.img_size,
                                                             "d_conv_dim": MODEL.d_conv_dim,
                                                             "apply_d_sn": MODEL.apply_d_sn,
