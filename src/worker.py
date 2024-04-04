@@ -277,163 +277,180 @@ class WORKER(object):
                     real_images_ = self.AUG.series_augment(real_images)
                     fake_images_ = self.AUG.series_augment(fake_images)
 
-                    # calculate adv_output, embed, proxy, and cls_output using the discriminator
-                    real_dict = self.Dis(real_images_, real_labels)
-                    fake_dict = self.Dis(fake_images_, fake_labels, adc_fake=self.adc_fake)
 
-                    # accumulate discriminator output informations for logging
-                    if self.AUG.apply_ada or self.AUG.apply_apa:
-                        self.dis_sign_real += torch.tensor((real_dict["adv_output"].sign().sum().item(),
-                                                            self.OPTIMIZATION.batch_size),
-                                                        device=self.local_rank)
-                        self.dis_sign_fake += torch.tensor((fake_dict["adv_output"].sign().sum().item(),
-                                                            self.OPTIMIZATION.batch_size),
-                                                        device=self.local_rank)
-                        self.dis_logit_real += torch.tensor((real_dict["adv_output"].sum().item(),
-                                                            self.OPTIMIZATION.batch_size),
-                                                            device=self.local_rank)
-                        self.dis_logit_fake += torch.tensor((fake_dict["adv_output"].sum().item(),
-                                                            self.OPTIMIZATION.batch_size),
-                                                            device=self.local_rank)
-
-                    # calculate adversarial loss defined by "LOSS.adv_loss"
-                    if self.LOSS.adv_loss == "MH":
-                        dis_acml_loss = self.LOSS.d_loss(DDP=self.DDP, **real_dict)
-                        dis_acml_loss += self.LOSS.d_loss(fake_dict["adv_output"], self.lossy, DDP=self.DDP)
+                    if self.MODEL.ensemble:
+                        discriminators = self.Dis.discriminators
                     else:
-                        dis_acml_loss = self.LOSS.d_loss(real_dict["adv_output"], fake_dict["adv_output"], DDP=self.DDP)
+                        discriminators = [self.Dis]
+                    list_of_dis_acml_loss = []
 
-                    # calculate class conditioning loss defined by "MODEL.d_cond_mtd"
-                    if self.MODEL.d_cond_mtd in self.MISC.classifier_based_GAN:
-                        real_cond_loss = self.cond_loss(**real_dict)
-                        dis_acml_loss += self.LOSS.cond_lambda * real_cond_loss
-                        if self.MODEL.aux_cls_type == "TAC":
-                            tac_dis_loss = self.cond_loss_mi(**fake_dict)
-                            dis_acml_loss += self.LOSS.tac_dis_lambda * tac_dis_loss
-                        elif self.MODEL.aux_cls_type == "ADC":
-                            fake_cond_loss = self.cond_loss(**fake_dict)
-                            dis_acml_loss += self.LOSS.cond_lambda * fake_cond_loss
-                        else:
-                            pass
-                    else:
-                        real_cond_loss = "N/A"
+                    for discr in discriminators:
+                        # calculate adv_output, embed, proxy, and cls_output using the discriminator
+                        real_dict = discr(real_images_, real_labels)
+                        fake_dict = discr(fake_images_, fake_labels, adc_fake=self.adc_fake)
 
-                    # add transport cost for latent optimization training
-                    if self.LOSS.apply_lo:
-                        dis_acml_loss += self.LOSS.lo_lambda * trsp_cost
-
-                    # if LOSS.apply_cr is True, force the adv. and cls. logits to be the same
-                    if self.LOSS.apply_cr:
-                        real_prl_images = self.AUG.parallel_augment(real_images)
-                        real_prl_dict = self.Dis(real_prl_images, real_labels)
-                        real_consist_loss = self.l2_loss(real_dict["adv_output"], real_prl_dict["adv_output"])
-                        if self.MODEL.d_cond_mtd == "AC":
-                            real_consist_loss += self.l2_loss(real_dict["cls_output"], real_prl_dict["cls_output"])
-                        elif self.MODEL.d_cond_mtd in ["2C", "D2DCE"]:
-                            real_consist_loss += self.l2_loss(real_dict["embed"], real_prl_dict["embed"])
-                        else:
-                            pass
-                        dis_acml_loss += self.LOSS.cr_lambda * real_consist_loss
-
-                    # if LOSS.apply_bcr is True, apply balanced consistency regularization proposed in ICRGAN
-                    if self.LOSS.apply_bcr:
-                        real_prl_images = self.AUG.parallel_augment(real_images)
-                        fake_prl_images = self.AUG.parallel_augment(fake_images)
-                        real_prl_dict = self.Dis(real_prl_images, real_labels)
-                        fake_prl_dict = self.Dis(fake_prl_images, fake_labels, adc_fake=self.adc_fake)
-                        real_bcr_loss = self.l2_loss(real_dict["adv_output"], real_prl_dict["adv_output"])
-                        fake_bcr_loss = self.l2_loss(fake_dict["adv_output"], fake_prl_dict["adv_output"])
-                        if self.MODEL.d_cond_mtd == "AC":
-                            real_bcr_loss += self.l2_loss(real_dict["cls_output"], real_prl_dict["cls_output"])
-                            fake_bcr_loss += self.l2_loss(fake_dict["cls_output"], fake_prl_dict["cls_output"])
-                        elif self.MODEL.d_cond_mtd in ["2C", "D2DCE"]:
-                            real_bcr_loss += self.l2_loss(real_dict["embed"], real_prl_dict["embed"])
-                            fake_bcr_loss += self.l2_loss(fake_dict["embed"], fake_prl_dict["embed"])
-                        else:
-                            pass
-                        dis_acml_loss += self.LOSS.real_lambda * real_bcr_loss + self.LOSS.fake_lambda * fake_bcr_loss
-
-                    # if LOSS.apply_zcr is True, apply latent consistency regularization proposed in ICRGAN
-                    if self.LOSS.apply_zcr:
-                        fake_eps_dict = self.Dis(fake_images_eps, fake_labels, adc_fake=self.adc_fake)
-                        fake_zcr_loss = self.l2_loss(fake_dict["adv_output"], fake_eps_dict["adv_output"])
-                        if self.MODEL.d_cond_mtd == "AC":
-                            fake_zcr_loss += self.l2_loss(fake_dict["cls_output"], fake_eps_dict["cls_output"])
-                        elif self.MODEL.d_cond_mtd in ["2C", "D2DCE"]:
-                            fake_zcr_loss += self.l2_loss(fake_dict["embed"], fake_eps_dict["embed"])
-                        else:
-                            pass
-                        dis_acml_loss += self.LOSS.d_lambda * fake_zcr_loss
-
-                    # apply gradient penalty regularization to train wasserstein GAN
-                    if self.LOSS.apply_gp:
-                        gp_loss = losses.cal_grad_penalty(real_images=real_images,
-                                                          real_labels=real_labels,
-                                                          fake_images=fake_images,
-                                                          discriminator=self.Dis,
-                                                          device=self.local_rank)
-                        dis_acml_loss += self.LOSS.gp_lambda * gp_loss
-
-                    # apply deep regret analysis regularization to train wasserstein GAN
-                    if self.LOSS.apply_dra:
-                        dra_loss = losses.cal_dra_penalty(real_images=real_images,
-                                                          real_labels=real_labels,
-                                                          discriminator=self.Dis,
-                                                          device=self.local_rank)
-                        dis_acml_loss += self.LOSS.dra_lambda * dra_loss
-
-                    # apply max gradient penalty regularization to train Lipschitz GAN
-                    if self.LOSS.apply_maxgp:
-                        maxgp_loss = losses.cal_maxgrad_penalty(real_images=real_images,
-                                                                real_labels=real_labels,
-                                                                fake_images=fake_images,
-                                                                discriminator=self.Dis,
-                                                                device=self.local_rank)
-                        dis_acml_loss += self.LOSS.maxgp_lambda * maxgp_loss
-
-                    # apply LeCam reg. for data-efficient training if self.LOSS.apply_lecam is set to True
-                    if self.LOSS.apply_lecam:
-                        if self.DDP:
-                            real_adv_output = torch.cat(losses.GatherLayer.apply(real_dict["adv_output"]), dim=0)
-                            fake_adv_output = torch.cat(losses.GatherLayer.apply(fake_dict["adv_output"]), dim=0)
-                        else:
-                            real_adv_output, fake_adv_output = real_dict["adv_output"], fake_dict["adv_output"]
-                        self.lecam_ema.update(torch.mean(real_adv_output).item(), "D_real", current_step)
-                        self.lecam_ema.update(torch.mean(fake_adv_output).item(), "D_fake", current_step)
-                        if current_step > self.LOSS.lecam_ema_start_iter:
-                            lecam_loss = losses.lecam_reg(real_adv_output, fake_adv_output, self.lecam_ema)
-                        else:
-                            lecam_loss = torch.tensor(0., device=self.local_rank)
-                        dis_acml_loss += self.LOSS.lecam_lambda*lecam_loss
-
-                    # apply r1_reg inside of training loop
-                    if self.LOSS.apply_r1_reg and not self.is_stylegan:
-                        self.r1_penalty = losses.cal_r1_reg(adv_output=real_dict["adv_output"], images=real_images, device=self.local_rank)
-                        dis_acml_loss += self.LOSS.r1_lambda*self.r1_penalty
-                    elif self.LOSS.apply_r1_reg and self.LOSS.r1_place == "inside_loop" and \
-                        (self.OPTIMIZATION.d_updates_per_step*current_step + step_index) % self.STYLEGAN.d_reg_interval == 0:
-                        real_images.requires_grad_(True)
-                        real_dict = self.Dis(self.AUG.series_augment(real_images), real_labels)
-                        self.r1_penalty = losses.stylegan_cal_r1_reg(adv_output=real_dict["adv_output"],
-                                                                     images=real_images)
-                        dis_acml_loss += self.STYLEGAN.d_reg_interval*self.LOSS.r1_lambda*self.r1_penalty
+                        # accumulate discriminator output informations for logging
                         if self.AUG.apply_ada or self.AUG.apply_apa:
                             self.dis_sign_real += torch.tensor((real_dict["adv_output"].sign().sum().item(),
+                                                                self.OPTIMIZATION.batch_size),
+                                                            device=self.local_rank)
+                            self.dis_sign_fake += torch.tensor((fake_dict["adv_output"].sign().sum().item(),
                                                                 self.OPTIMIZATION.batch_size),
                                                             device=self.local_rank)
                             self.dis_logit_real += torch.tensor((real_dict["adv_output"].sum().item(),
                                                                 self.OPTIMIZATION.batch_size),
                                                                 device=self.local_rank)
+                            self.dis_logit_fake += torch.tensor((fake_dict["adv_output"].sum().item(),
+                                                                self.OPTIMIZATION.batch_size),
+                                                                device=self.local_rank)
 
-                    # adjust gradients for applying gradient accumluation trick
-                    dis_acml_loss = dis_acml_loss / self.OPTIMIZATION.acml_steps
+                        # calculate adversarial loss defined by "LOSS.adv_loss"
+                        if self.LOSS.adv_loss == "MH":
+                            dis_acml_loss = self.LOSS.d_loss(DDP=self.DDP, **real_dict)
+                            dis_acml_loss += self.LOSS.d_loss(fake_dict["adv_output"], self.lossy, DDP=self.DDP)
+                        else:
+                            dis_acml_loss = self.LOSS.d_loss(real_dict["adv_output"], fake_dict["adv_output"], DDP=self.DDP)
+
+                        # calculate class conditioning loss defined by "MODEL.d_cond_mtd"
+                        if self.MODEL.d_cond_mtd in self.MISC.classifier_based_GAN:
+                            real_cond_loss = self.cond_loss(**real_dict)
+                            dis_acml_loss += self.LOSS.cond_lambda * real_cond_loss
+                            if self.MODEL.aux_cls_type == "TAC":
+                                tac_dis_loss = self.cond_loss_mi(**fake_dict)
+                                dis_acml_loss += self.LOSS.tac_dis_lambda * tac_dis_loss
+                            elif self.MODEL.aux_cls_type == "ADC":
+                                fake_cond_loss = self.cond_loss(**fake_dict)
+                                dis_acml_loss += self.LOSS.cond_lambda * fake_cond_loss
+                            else:
+                                pass
+                        else:
+                            real_cond_loss = "N/A"
+
+                        # add transport cost for latent optimization training
+                        if self.LOSS.apply_lo:
+                            dis_acml_loss += self.LOSS.lo_lambda * trsp_cost
+
+                        # if LOSS.apply_cr is True, force the adv. and cls. logits to be the same
+                        if self.LOSS.apply_cr:
+                            real_prl_images = self.AUG.parallel_augment(real_images)
+                            real_prl_dict = discr(real_prl_images, real_labels)
+                            real_consist_loss = self.l2_loss(real_dict["adv_output"], real_prl_dict["adv_output"])
+                            if self.MODEL.d_cond_mtd == "AC":
+                                real_consist_loss += self.l2_loss(real_dict["cls_output"], real_prl_dict["cls_output"])
+                            elif self.MODEL.d_cond_mtd in ["2C", "D2DCE"]:
+                                real_consist_loss += self.l2_loss(real_dict["embed"], real_prl_dict["embed"])
+                            else:
+                                pass
+                            dis_acml_loss += self.LOSS.cr_lambda * real_consist_loss
+
+                        # if LOSS.apply_bcr is True, apply balanced consistency regularization proposed in ICRGAN
+                        if self.LOSS.apply_bcr:
+                            real_prl_images = self.AUG.parallel_augment(real_images)
+                            fake_prl_images = self.AUG.parallel_augment(fake_images)
+                            real_prl_dict = discr(real_prl_images, real_labels)
+                            fake_prl_dict = discr(fake_prl_images, fake_labels, adc_fake=self.adc_fake)
+                            real_bcr_loss = self.l2_loss(real_dict["adv_output"], real_prl_dict["adv_output"])
+                            fake_bcr_loss = self.l2_loss(fake_dict["adv_output"], fake_prl_dict["adv_output"])
+                            if self.MODEL.d_cond_mtd == "AC":
+                                real_bcr_loss += self.l2_loss(real_dict["cls_output"], real_prl_dict["cls_output"])
+                                fake_bcr_loss += self.l2_loss(fake_dict["cls_output"], fake_prl_dict["cls_output"])
+                            elif self.MODEL.d_cond_mtd in ["2C", "D2DCE"]:
+                                real_bcr_loss += self.l2_loss(real_dict["embed"], real_prl_dict["embed"])
+                                fake_bcr_loss += self.l2_loss(fake_dict["embed"], fake_prl_dict["embed"])
+                            else:
+                                pass
+                            dis_acml_loss += self.LOSS.real_lambda * real_bcr_loss + self.LOSS.fake_lambda * fake_bcr_loss
+
+                        # if LOSS.apply_zcr is True, apply latent consistency regularization proposed in ICRGAN
+                        if self.LOSS.apply_zcr:
+                            fake_eps_dict = discr(fake_images_eps, fake_labels, adc_fake=self.adc_fake)
+                            fake_zcr_loss = self.l2_loss(fake_dict["adv_output"], fake_eps_dict["adv_output"])
+                            if self.MODEL.d_cond_mtd == "AC":
+                                fake_zcr_loss += self.l2_loss(fake_dict["cls_output"], fake_eps_dict["cls_output"])
+                            elif self.MODEL.d_cond_mtd in ["2C", "D2DCE"]:
+                                fake_zcr_loss += self.l2_loss(fake_dict["embed"], fake_eps_dict["embed"])
+                            else:
+                                pass
+                            dis_acml_loss += self.LOSS.d_lambda * fake_zcr_loss
+
+                        # apply gradient penalty regularization to train wasserstein GAN
+                        if self.LOSS.apply_gp:
+                            # check:
+                            gp_loss = losses.cal_grad_penalty(real_images=real_images,
+                                                              real_labels=real_labels,
+                                                              fake_images=fake_images,
+                                                              discriminator=discr,
+                                                              device=self.local_rank)
+                            gp_loss *= self.LOSS.gp_lambda
+
+                        # apply deep regret analysis regularization to train wasserstein GAN
+                        if self.LOSS.apply_dra:
+                            dra_loss = losses.cal_dra_penalty(real_images=real_images,
+                                                              real_labels=real_labels,
+                                                              discriminator=discr,
+                                                              device=self.local_rank)
+                            dis_acml_loss += self.LOSS.dra_lambda * dra_loss
+
+                        # apply max gradient penalty regularization to train Lipschitz GAN
+                        if self.LOSS.apply_maxgp:
+                            maxgp_loss = losses.cal_maxgrad_penalty(real_images=real_images,
+                                                                    real_labels=real_labels,
+                                                                    fake_images=fake_images,
+                                                                    discriminator=discr,
+                                                                    device=self.local_rank)
+                            dis_acml_loss += self.LOSS.maxgp_lambda * maxgp_loss
+
+                        # apply LeCam reg. for data-efficient training if self.LOSS.apply_lecam is set to True
+                        if self.LOSS.apply_lecam:
+                            if self.DDP:
+                                real_adv_output = torch.cat(losses.GatherLayer.apply(real_dict["adv_output"]), dim=0)
+                                fake_adv_output = torch.cat(losses.GatherLayer.apply(fake_dict["adv_output"]), dim=0)
+                            else:
+                                real_adv_output, fake_adv_output = real_dict["adv_output"], fake_dict["adv_output"]
+                            self.lecam_ema.update(torch.mean(real_adv_output).item(), "D_real", current_step)
+                            self.lecam_ema.update(torch.mean(fake_adv_output).item(), "D_fake", current_step)
+                            if current_step > self.LOSS.lecam_ema_start_iter:
+                                lecam_loss = losses.lecam_reg(real_adv_output, fake_adv_output, self.lecam_ema)
+                            else:
+                                lecam_loss = torch.tensor(0., device=self.local_rank)
+                            dis_acml_loss += self.LOSS.lecam_lambda*lecam_loss
+
+                        # apply r1_reg inside of training loop
+                        if self.LOSS.apply_r1_reg and not self.is_stylegan:
+                            self.r1_penalty = losses.cal_r1_reg(adv_output=real_dict["adv_output"], images=real_images, device=self.local_rank)
+                            dis_acml_loss += self.LOSS.r1_lambda*self.r1_penalty
+                        elif self.LOSS.apply_r1_reg and self.LOSS.r1_place == "inside_loop" and \
+                            (self.OPTIMIZATION.d_updates_per_step*current_step + step_index) % self.STYLEGAN.d_reg_interval == 0:
+                            real_images.requires_grad_(True)
+                            real_dict = discr(self.AUG.series_augment(real_images), real_labels)
+                            self.r1_penalty = losses.stylegan_cal_r1_reg(adv_output=real_dict["adv_output"],
+                                                                         images=real_images)
+                            dis_acml_loss += self.STYLEGAN.d_reg_interval*self.LOSS.r1_lambda*self.r1_penalty
+                            if self.AUG.apply_ada or self.AUG.apply_apa:
+                                self.dis_sign_real += torch.tensor((real_dict["adv_output"].sign().sum().item(),
+                                                                    self.OPTIMIZATION.batch_size),
+                                                                device=self.local_rank)
+                                self.dis_logit_real += torch.tensor((real_dict["adv_output"].sum().item(),
+                                                                    self.OPTIMIZATION.batch_size),
+                                                                    device=self.local_rank)
+
+                        # adjust gradients for applying gradient accumluation trick
+                        dis_acml_loss = dis_acml_loss / self.OPTIMIZATION.acml_steps
+
+                        # add loss, to ensemble loss list:
+                        list_of_dis_acml_loss.append(dis_acml_loss)
+
                     batch_counter += 1
 
-                # accumulate gradients of the discriminator
-                if self.RUN.mixed_precision and not self.is_stylegan:
-                    self.scaler.scale(dis_acml_loss).backward()
-                else:
-                    dis_acml_loss.backward()
+                # backward for each individual discriminator
+                for current_dis_acml_loss in list_of_dis_acml_loss:
+                    # accumulate gradients of the discriminator
+                    if self.RUN.mixed_precision and not self.is_stylegan:
+                        self.scaler.scale(current_dis_acml_loss).backward()
+                    else:
+                        current_dis_acml_loss.backward()
+
+                dis_acml_loss = torch.mean(torch.stack(list_of_dis_acml_loss))
 
             # update the discriminator using the pre-defined optimizer
             if self.RUN.mixed_precision and not self.is_stylegan:
@@ -441,6 +458,7 @@ class WORKER(object):
                 self.scaler.update()
             else:
                 self.OPTIMIZATION.d_optimizer.step()
+
 
             # apply r1_reg outside of training loop
             if self.LOSS.apply_r1_reg and self.LOSS.r1_place == "outside_loop" and \
