@@ -375,13 +375,12 @@ class WORKER(object):
 
                         # apply gradient penalty regularization to train wasserstein GAN
                         if self.LOSS.apply_gp:
-                            # check:
                             gp_loss = losses.cal_grad_penalty(real_images=real_images,
                                                               real_labels=real_labels,
                                                               fake_images=fake_images,
                                                               discriminator=discr,
                                                               device=self.local_rank)
-                            gp_loss *= self.LOSS.gp_lambda
+                            dis_acml_loss += gp_loss * self.LOSS.gp_lambda
 
                         # apply deep regret analysis regularization to train wasserstein GAN
                         if self.LOSS.apply_dra:
