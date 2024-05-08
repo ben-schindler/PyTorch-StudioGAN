@@ -9,8 +9,10 @@ MODEL:
   g_conv_dim: "N/A"
   d_conv_dim: "N/A"
   ensemble: True
-  ens_multiplier: 2
-  ens_weighting: "ew"
+  ens_multiplier: 3
+  ens_weighting: "rand_bernoulli"
+  ens_split_batch: True
 OPTIMIZATION:
   d_updates_per_step: 2
+  batch_size: 192
   total_steps: 200000

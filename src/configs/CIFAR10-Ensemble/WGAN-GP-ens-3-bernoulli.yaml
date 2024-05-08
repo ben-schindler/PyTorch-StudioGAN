@@ -7,7 +7,7 @@ RUN:
 MODEL:
   ensemble: True
   ens_multiplier: 3
-  ens_weighting: rand_bernoulli
+  ens_weighting: "rand_bernoulli"
 LOSS:
   adv_loss: "wasserstein"
   apply_gp: True

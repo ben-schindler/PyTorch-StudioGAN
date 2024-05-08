@@ -10,7 +10,7 @@ MODEL:
   d_conv_dim: "N/A"
   ensemble: True
   ens_multiplier: 3
-  ens_weighting: rand_bernoulli
+  ens_weighting: "rand_bernoulli"
 OPTIMIZATION:
   d_updates_per_step: 2
   total_steps: 200000

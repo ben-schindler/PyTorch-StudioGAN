@@ -9,7 +9,7 @@ MODEL:
   g_conv_dim: "N/A"
   d_conv_dim: "N/A"
   ensemble: True
-  ens_multiplier: 2
+  ens_multiplier: 5
   ens_weighting: "ew"
 OPTIMIZATION:
   d_updates_per_step: 2

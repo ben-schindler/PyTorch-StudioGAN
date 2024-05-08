@@ -7,8 +7,10 @@ RUN:
 MODEL:
   ensemble: True
   ens_multiplier: 3
-  ens_weighting: "soft"
+  ens_weighting: rand_bernoulli
 LOSS:
   adv_loss: "wasserstein"
   apply_gp: True
   gp_lambda: 10.0
+OPTIMIZATION:
+  batch_size: 192

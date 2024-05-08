@@ -7,7 +7,7 @@ RUN:
 MODEL:
   ensemble: True
   ens_multiplier: 3
-  ens_weighting: "soft"
+  ens_weighting: "rand_normal"
 LOSS:
   adv_loss: "wasserstein"
   apply_gp: True
