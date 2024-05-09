@@ -71,8 +71,8 @@ def generate_images_and_stack_features(generator, discriminator, eval_model, num
                 current_batch_D_outs = []
                 current_batch_fake_grads = []
                 fake_images.requires_grad_(True).retain_grad()
-                for n in range(discriminator.n_of_discr):
-                    D_out = discriminator.forward_single(fake_images, n, fake_labels)["adv_output"]
+                for discr in discriminator.discriminators:
+                    D_out = discr(fake_images, fake_labels)["adv_output"]
                     current_batch_D_outs.append(D_out)
                     D_out.mean().backward()
                     current_batch_fake_grads.append(fake_images.grad)
