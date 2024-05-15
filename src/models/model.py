@@ -208,7 +208,10 @@ def prepare_parallel_training(Gen, Gen_mapping, Gen_synthesis, Dis, Gen_ema, Gen
             Gen_synthesis = DataParallel(Gen.synthesis, output_device=device)
         else:
             Gen = DataParallel(Gen, output_device=device)
-        Dis = DataParallel(Dis, output_device=device)
+        if MODEL.ensemble:
+            Dis.discriminators = [DataParallel(discr) for discr in Dis.discriminators]
+        else:
+            Dis = DataParallel(Dis, output_device=device)
         if apply_g_ema:
             if MODEL.backbone in ["stylegan2", "stylegan3"]:
                 Gen_ema_mapping = DataParallel(Gen_ema.mapping, output_device=device)
