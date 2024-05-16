@@ -12,3 +12,5 @@ LOSS:
   adv_loss: "wasserstein"
   apply_gp: False
   gp_lambda: 0.0
+OPTIMIZATION:
+  total_steps: 150000

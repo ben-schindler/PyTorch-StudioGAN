@@ -14,3 +14,4 @@ LOSS:
   gp_lambda: 10.0
 OPTIMIZATION:
   batch_size: 192
+  total_steps: 150000
