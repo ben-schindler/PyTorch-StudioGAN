@@ -209,7 +209,7 @@ def prepare_parallel_training(Gen, Gen_mapping, Gen_synthesis, Dis, Gen_ema, Gen
         else:
             Gen = DataParallel(Gen, output_device=device)
         if MODEL.ensemble:
-            Dis.discriminators = [DataParallel(discr) for discr in Dis.discriminators]
+            Dis.discriminators = DataParallel(Dis.discriminators, output_device=device)
         else:
             Dis = DataParallel(Dis, output_device=device)
         if apply_g_ema:
