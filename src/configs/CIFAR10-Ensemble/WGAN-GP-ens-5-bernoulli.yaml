@@ -1,0 +1,14 @@
+DATA:
+  name: "CIFAR10"
+  img_size: 32
+  num_classes: 10
+RUN:
+  save_sample_gradients: True
+MODEL:
+  ensemble: True
+  ens_multiplier: 5
+  ens_weighting: "rand_bernoulli"
+LOSS:
+  adv_loss: "wasserstein"
+  apply_gp: True
+  gp_lambda: 10.0
