@@ -193,9 +193,15 @@ def prepare_parallel_training(Gen, Gen_mapping, Gen_synthesis, Dis, Gen_ema, Gen
             Gen_synthesis = DDP(Gen.synthesis, device_ids=[device], broadcast_buffers=False)
         else:
             Gen = DDP(Gen, device_ids=[device], broadcast_buffers=synchronized_bn)
-        Dis = DDP(Dis, device_ids=[device],
-                  broadcast_buffers=False if MODEL.backbone in ["stylegan2", "stylegan3"] else synchronized_bn,
-                  find_unused_parameters=True if MODEL.info_type in ["discrete", "continuous", "both"] else False)
+        if MODEL.ensemble:
+            for idx in range(len(Dis.discriminators)):
+                Dis.discriminators[idx] = DDP(Dis.discriminators[idx], device_ids=[device],
+                      broadcast_buffers=False if MODEL.backbone in ["stylegan2", "stylegan3"] else synchronized_bn,
+                      find_unused_parameters=True if MODEL.info_type in ["discrete", "continuous", "both"] else False)
+        else:
+            Dis = DDP(Dis, device_ids=[device],
+                      broadcast_buffers=False if MODEL.backbone in ["stylegan2", "stylegan3"] else synchronized_bn,
+                      find_unused_parameters=True if MODEL.info_type in ["discrete", "continuous", "both"] else False)
         if apply_g_ema:
             if MODEL.backbone in ["stylegan2", "stylegan3"]:
                 Gen_ema_mapping = DDP(Gen_ema.mapping, device_ids=[device], broadcast_buffers=False)
