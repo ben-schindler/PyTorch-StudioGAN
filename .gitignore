@@ -12,3 +12,5 @@ wandb/
 test/
 *.csv
 *.npy
+slurm*.out
+*.ipynb_checkpoints
