@@ -96,7 +96,7 @@ def generate_images_and_stack_features(generator, discriminator, eval_model, num
         fake_grads = torch.cat(fake_grads, dim=0)  # dim: Sample x Discriminator x Features(multiple)
         #saving predictions and gradients as files
         with torch.no_grad():
-            misc.save_samples_as_csv(D_outs.cpu(), save_path=path.join(RUN.save_dir, "ensemble", logger.name, D_out_filename), fmt='%.5f')
+            misc.save_samples_as_csv(D_outs.cpu(), save_path=path.join(RUN.save_dir, "ensemble", logger.name, D_out_filename), fmt='%.5e')
             misc.save_tensor_as_npz(fake_grads.cpu(), save_path=path.join(RUN.save_dir, "ensemble", logger.name, fake_grads_filename))
     return feature_holder, prob_holder, list(fake_label_holder.detach().cpu().numpy())
 

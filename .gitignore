@@ -14,3 +14,5 @@ test/
 *.npy
 slurm*.out
 *.ipynb_checkpoints
+notebooks/.ipynb_checkpoints/*
+

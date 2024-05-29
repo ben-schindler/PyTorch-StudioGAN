@@ -129,6 +129,8 @@ class Configurations(object):
         self.MODEL.ens_fixed_weights = None
         # split batch across discriminators
         self.MODEL.ens_split_batch = False
+        # split batch across discriminators
+        self.MODEL.ens_grad_norm = False
 
 
         # -----------------------------------------------------------------------------

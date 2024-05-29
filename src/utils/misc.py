@@ -11,6 +11,7 @@ import random
 import math
 import os
 import sys
+import os.path as path
 import glob
 import json
 import warnings
@@ -702,7 +703,13 @@ def save_samples_as_csv(batch, save_path, *args, **kwds):
     if not exists(directory):
         os.makedirs(directory)
 
-    np.savetxt(save_path, out, delimiter=",", *args, **kwds)
+    try:
+        np.savetxt(save_path, np.nan_to_num(out), delimiter=",", *args, **kwds)
+    except OSError as e:
+        if e.errno == 34:  # Numerical result out of range
+            warnings.warn(f"Unable to create file '{save_path}' due to numerical result out of range.", UserWarning)
+        else:
+            raise e
 
 def save_tensor_as_npz(tensor, save_path, *args, **kwds):
     directory = dirname(save_path)

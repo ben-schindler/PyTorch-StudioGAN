@@ -123,6 +123,7 @@ def load_generator_discriminator(DATA, OPTIMIZATION, MODEL, STYLEGAN, MODULES, R
                                                         weighting=MODEL.ens_weighting,
                                                         fixed_weights=MODEL.ens_fixed_weights,
                                                         split_batch=MODEL.ens_split_batch,
+                                                        grad_norm=MODEL.ens_grad_norm,
                                                         isStudioGAN=True,
                                                         **{"img_size": DATA.img_size,
                                                             "d_conv_dim": MODEL.d_conv_dim,
