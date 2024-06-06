@@ -3,7 +3,7 @@ DATA:
   img_size: 32
   num_classes: 10
 RUN:
-  save_sample_gradients: True
+  save_sample_gradients: False
 MODEL:
   ensemble: True
   ens_multiplier: 10

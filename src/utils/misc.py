@@ -726,4 +726,4 @@ def save_tensor_as_npz(tensor, save_path, *args, **kwds):
     else:
         raise TypeError("Batch must be numpy array, pandas Dataframe, or Torch Tensor")
 
-    np.savez(save_path, out, *args, **kwds)
+    np.savez_compressed(save_path, out, *args, **kwds)
