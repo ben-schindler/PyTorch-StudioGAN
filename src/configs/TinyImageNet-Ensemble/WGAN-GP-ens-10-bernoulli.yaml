@@ -1,0 +1,16 @@
+DATA:
+  name: "TinyImageNet"
+  img_size: 64
+  num_classes: 200
+RUN:
+  save_sample_gradients: False
+MODEL:
+  ensemble: True
+  ens_multiplier: 10
+  ens_weighting: "rand_bernoulli"
+LOSS:
+  adv_loss: "wasserstein"
+  apply_gp: True
+  gp_lambda: 10.0
+OPTIMIZATION:
+  total_steps: 150000
