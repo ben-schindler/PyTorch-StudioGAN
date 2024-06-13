@@ -18,7 +18,7 @@ import utils.misc as misc
 
 def generate_images_and_stack_features(generator, discriminator, eval_model, num_generate, y_sampler, batch_size, z_prior,
                                        truncation_factor, z_dim, num_classes, LOSS, RUN, MODEL, is_stylegan, generator_mapping,
-                                       generator_synthesis, quantize, world_size, DDP, device, logger, disable_tqdm, save_sample_gradients, step):
+                                       generator_synthesis, quantize, world_size, DDP, device, logger, disable_tqdm, save_sample_gradients, step, run_name):
     eval_model.eval()
     feature_holder, prob_holder, fake_label_holder = [], [], []
 
@@ -96,8 +96,8 @@ def generate_images_and_stack_features(generator, discriminator, eval_model, num
         fake_grads = torch.cat(fake_grads, dim=0)  # dim: Sample x Discriminator x Features(multiple)
         #saving predictions and gradients as files
         with torch.no_grad():
-            misc.save_samples_as_csv(D_outs.cpu(), save_path=path.join(RUN.save_dir, "ensemble", logger.name, D_out_filename), fmt='%.5e')
-            misc.save_tensor_as_npz(fake_grads.cpu(), save_path=path.join(RUN.save_dir, "ensemble", logger.name, fake_grads_filename))
+            misc.save_samples_as_csv(D_outs.cpu(), save_path=path.join(RUN.save_dir, "ensemble", run_name, D_out_filename), fmt='%.5e')
+            misc.save_tensor_as_npz(fake_grads.cpu(), save_path=path.join(RUN.save_dir, "ensemble", run_name, fake_grads_filename))
     return feature_holder, prob_holder, list(fake_label_holder.detach().cpu().numpy())
 
 

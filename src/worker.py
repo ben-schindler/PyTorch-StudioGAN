@@ -857,7 +857,8 @@ class WORKER(object):
                 logger=self.logger,
                 disable_tqdm=self.global_rank != 0,
                 save_sample_gradients=self.RUN.save_sample_gradients,
-                step=step)
+                step=step,
+                run_name=self.run_name)
 
             if ("fid" in metrics or "prdc" in metrics) and self.global_rank == 0:
                 self.logger.info("{num_images} real images is used for evaluation.".format(num_images=len(self.eval_dataloader.dataset)))
@@ -1455,7 +1456,8 @@ class WORKER(object):
                     logger=self.logger,
                     disable_tqdm=True,
                     save_sample_gradients=False,
-                    step=None)
+                    step=None,
+                    run_name=self.run_name)
 
                 ifid_score, _, _ = fid.calculate_fid(data_loader="N/A",
                                                      eval_model=self.eval_model,
