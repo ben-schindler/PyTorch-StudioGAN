@@ -66,7 +66,7 @@ def generate_images_and_stack_features(generator, discriminator, eval_model, num
         fake_label_holder.append(fake_labels)
 
         # adopted to save Gradients of generated samples:
-        if save_sample_gradients and i < 10:
+        if save_sample_gradients and i < 10 * world_size:
             with torch.enable_grad():
                 current_batch_D_outs = []
                 current_batch_fake_grads = []
@@ -90,7 +90,7 @@ def generate_images_and_stack_features(generator, discriminator, eval_model, num
         fake_label_holder = torch.cat(losses.GatherLayer.apply(fake_label_holder), dim=0)
 
     # adopted to save Gradients of generated samples:
-    if save_sample_gradients:
+    if save_sample_gradients and (device == 0 or device == torch.device("mps") or device == torch.device("cpu")):
         #concatenating multiple evaluation batches
         D_outs = torch.cat(D_outs, dim=0)  # dim: Sample x Discriminator
         fake_grads = torch.cat(fake_grads, dim=0)  # dim: Sample x Discriminator x Features(multiple)

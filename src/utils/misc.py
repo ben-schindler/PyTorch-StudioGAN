@@ -701,7 +701,7 @@ def save_samples_as_csv(batch, save_path, *args, **kwds):
     directory = dirname(save_path)
 
     if not exists(directory):
-        os.makedirs(directory)
+        os.makedirs(directory, exist_ok=True)
 
     try:
         np.savetxt(save_path, np.nan_to_num(out), delimiter=",", *args, **kwds)
