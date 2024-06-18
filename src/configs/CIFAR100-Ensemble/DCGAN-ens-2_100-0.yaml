@@ -1,0 +1,17 @@
+DATA:
+  name: "CIFAR100"
+  img_size: 32
+  num_classes: 100
+RUN:
+  save_sample_gradients: True
+MODEL:
+  backbone: "deep_conv"
+  g_conv_dim: "N/A"
+  d_conv_dim: "N/A"
+  ensemble: True
+  ens_multiplier: 2
+  ens_weighting: "fixed"
+  ens_fixed_weights: [1.0,0.0]
+OPTIMIZATION:
+  d_updates_per_step: 2
+  total_steps: 200000
