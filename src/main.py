@@ -177,6 +177,7 @@ def load_configs_initialize_training():
 
 
 if __name__ == "__main__":
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
     cfgs, gpus_per_node, run_name, hdf5_path, rank = load_configs_initialize_training()
 
     if cfgs.RUN.distributed_data_parallel and cfgs.OPTIMIZATION.world_size > 1:
